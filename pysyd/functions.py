@@ -10,10 +10,10 @@ def set_seed(star):
     from U~[1,10^6] and stored in stars_info.csv for reproducible results in later runs."""
     seed = list(np.random.randint(1,high=10000000,size=1))
     df = pd.read_csv(star.info)
-    stars = df.targets.values.tolist()
-    idx = stars.index(star.star)
+    stars = df.stars.values.tolist()
+    idx = stars.index(star.name)
     df.loc[idx,'seed'] = int(seed[0])
-    star.params[star.star]['seed'] = seed[0]
+    star.params[star.name]['seed'] = seed[0]
     df.to_csv(star.info,index=False)
     return star
 
@@ -34,7 +34,7 @@ def remove_artefact(star, lc=29.4244*60*1e-6):
     lc : float
         TODO: Write description. Default value is `29.4244*60*1e-6`.
     """
-    if star.params[star.star]['seed'] is None:
+    if star.params[star.name]['seed'] is None:
         star = set_seed(star)
     f, a = star.frequency, star.power
     oversample = int(round((1.0/((max(star.time)-min(star.time))*0.0864))/(star.frequency[1]-star.frequency[0])))
@@ -51,7 +51,7 @@ def remove_artefact(star, lc=29.4244*60*1e-6):
     # Estimate white noise
     noisefl = np.mean(a[(f >= max(f)-100.0) & (f <= max(f)-50.0)])
 
-    np.random.seed(int(star.params[star.star]['seed']))
+    np.random.seed(int(star.params[star.name]['seed']))
     # Routine 1: remove 1/LC artefacts by subtracting +/- 5 muHz given each artefact
     for i in range(len(art)):
         if art[i] < np.max(f):
@@ -59,7 +59,7 @@ def remove_artefact(star, lc=29.4244*60*1e-6):
             if use[0] != -1:
                 a[use] = noisefl*np.random.chisquare(2, len(use))/2.0
 
-    np.random.seed(int(star.params[star.star]['seed']))
+    np.random.seed(int(star.params[star.name]['seed']))
     # Routine 2: remove artefacts as identified in un1 & un2
     for i in range(0, len(un1)):
         if un1[i] < np.max(f):
@@ -67,7 +67,7 @@ def remove_artefact(star, lc=29.4244*60*1e-6):
             if use[0] != -1:
                 a[use] = noisefl*np.random.chisquare(2, len(use))/2.0
 
-    np.random.seed(int(star.params[star.star]['seed']))
+    np.random.seed(int(star.params[star.name]['seed']))
     # Routine 3: remove two wider artefacts as identified in un1 & un2
     un1 = [240.0, 500.0]
     un2 = [380.0, 530.0]
@@ -212,7 +212,7 @@ def mean_smooth_ind(x, y, width):
     y : np.ndarray
         the y values of the data
     width : float
-        independent average smoothing width
+        independent average smoothing width in muHz
 
     Returns
     -------
@@ -223,6 +223,8 @@ def mean_smooth_ind(x, y, width):
     se : np.ndarray
         standard error
     """
+    # Convert width in muHz to number of points:
+    width=len(np.where((x>x[0]) & (x<(x[0]+width)))[0])
     step = width-1
     j=0
     

@@ -6,11 +6,11 @@ from scipy.optimize import curve_fit
 from scipy.interpolate import InterpolatedUnivariateSpline
 from astropy.convolution import Box1DKernel, Gaussian1DKernel, convolve, convolve_fft
 
-from pysyd import functions
-from pysyd import models
-from pysyd import utils
-from pysyd import plots
-
+# from pysyd import functions
+# from pysyd import models
+# from pysyd import utils
+# from pysyd import plots
+import functions, models, utils, plots
 
 
 class Target:
@@ -67,8 +67,7 @@ class Target:
             self.run = 1
         else:
             self.run = 0
-            if self.verbose:
-                print('ERROR: data not found for star %d' % self.name)
+            print('ERROR: data not found for star %d' % self.name)
 
 
     def run_syd(self):

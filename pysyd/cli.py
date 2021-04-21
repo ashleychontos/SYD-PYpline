@@ -1,9 +1,14 @@
 import os
 import argparse
 
-import pysyd
-from pysyd import pipeline
-from pysyd import TODODIR, INFODIR, INPDIR, OUTDIR
+# import pysyd
+import pipeline
+# from pysyd import TODODIR, INFODIR, INPDIR, OUTDIR
+TODODIR='../info/todo.txt'
+INFODIR='../info/star_info.csv'
+INPDIR ='../data/'
+OUTDIR ='../results/'
+
 
 def main():
     # Properties inherent to both modules
@@ -13,7 +18,7 @@ def main():
     )
     parser.add_argument('-version', '--version',
                         action='version',
-                        version="%(prog)s {}".format(pysyd.__version__),
+                        # version="%(prog)s {}".format(pysyd.__version__),
                         help="Print version number and exit."
     )
 
@@ -155,9 +160,9 @@ def main():
 
     background.add_argument('-iw', '--iw', '-width', '--width', '-indwidth', '--indwidth',
                             dest='ind_width', 
-                            help='Number of independent points to use for binning of power spectrum (default=50)',
-                            default=50, 
-                            type=int,
+                            help='Frequency width to use for binning of power spectrum in muHz (default=20.0 muHz)',
+                            default=20.0, 
+                            type=float,
     )
     background.add_argument('-bf', '--bf', '-box', '--box', '-boxfilter', '--boxfilter',
                             dest='box_filter',
