@@ -218,7 +218,7 @@ class Target:
             best_vars, _ = curve_fit(models.gaussian, md, cumsum, 
                  p0=[np.mean(cumsum), 1.0-np.mean(cumsum), md[idx], self.params['width_sun']*(md[idx]/self.params['numax_sun'])],
                  maxfev=max_iterations,
-                 bounds=((-np.inf,-np.inf,1,-np.inf),(np.inf,np.inf,np.inf,np.inf)),
+                 bounds=((-np.inf,-np.inf,10.,-np.inf),(np.inf,np.inf,max(self.frequency),np.inf)),
                  )
         except Exception as _:
             self.findex['results'][self.name][b+1].update({'good_fit':False})
@@ -616,16 +616,38 @@ class Target:
         peaks_l = peaks_l[peaks_a.argsort()[::-1]][:self.fitbg['n_peaks']]
         peaks_a = peaks_a[peaks_a.argsort()[::-1]][:self.fitbg['n_peaks']]
         
-        # Pick best peak in ACF by using Gaussian weight according to expected dnu
-        idx = functions.return_max(peaks_l, peaks_a, index=True, exp_dnu=self.exp_dnu)
-        self.best_lag = peaks_l[idx]
-        self.best_auto = peaks_a[idx]
+        if len(peak_idx)==0: #if no peaks found due to non-detection or low-SNR
+            peak_idx=np.argmax(max(self.auto))
+            peaks_l,peaks_a = [self.lag[peak_idx]],[self.auto[peak_idx]]
+            self.best_lag = peaks_l[peak_idx]
+            self.best_auto = peaks_a[peak_idx]
+            self.zoom_lag = self.lag
+            self.zoom_auto = self.auto
+            idx = peak_idx
+        else: 
+            # Pick best peak in ACF by using Gaussian weight according to expected dnu
+            idx = functions.return_max(peaks_l, peaks_a, index=True, exp_dnu=self.exp_dnu)
+            self.best_lag = peaks_l[idx]
+            self.best_auto = peaks_a[idx]
+            
+            # Calculate FWHM
+            if list(self.lag[(self.lag<self.best_lag)&(self.auto<=self.best_auto/2.)]) != []:
+                left_lag = self.lag[(self.lag<self.best_lag)&(self.auto<=self.best_auto/2.)][-1]
+                left_auto = self.auto[(self.lag<self.best_lag)&(self.auto<=self.best_auto/2.)][-1]
+            else:
+                left_lag = self.lag[0]
+                left_auto = self.auto[0]
+            if list(self.lag[(self.lag>self.best_lag)&(self.auto<=self.best_auto/2.)]) != []:
+                right_lag = self.lag[(self.lag>self.best_lag)&(self.auto<=self.best_auto/2.)][0]
+                right_auto = self.auto[(self.lag>self.best_lag)&(self.auto<=self.best_auto/2.)][0]
+            else:
+                right_lag = self.lag[-1]
+                right_auto = self.auto[-1]
 
-        # Change fitted value with nan to highlight differently in plot
-        peaks_l[idx] = np.nan
-        peaks_a[idx] = np.nan
-        self.peaks_l = peaks_l
-        self.peaks_a = peaks_a
+            # Lag limits to use for ACF mask or "cutout"
+            self.fitbg['acf_mask'][self.name]=[self.best_lag-(threshold*((right_lag-left_lag)/2.)),self.best_lag+(threshold*((right_lag-left_lag)/2.))]
+            self.zoom_lag = self.lag[(self.lag>=self.fitbg['acf_mask'][self.name][0])&(self.lag<=self.fitbg['acf_mask'][self.name][1])]
+            self.zoom_auto = self.auto[(self.lag>=self.fitbg['acf_mask'][self.name][0])&(self.lag<=self.fitbg['acf_mask'][self.name][1])]
         
         # Calculate FWHM
         if list(self.lag[(self.lag<self.best_lag)&(self.auto<=self.best_auto/2.)]) != []:
@@ -641,16 +663,19 @@ class Target:
             right_lag = self.lag[-1]
             right_auto = self.auto[-1]
 
-        # Lag limits to use for ACF mask or "cutout"
-        self.fitbg['acf_mask'][self.name]=[self.best_lag-(threshold*((right_lag-left_lag)/2.)),self.best_lag+(threshold*((right_lag-left_lag)/2.))]
-        self.zoom_lag = self.lag[(self.lag>=self.fitbg['acf_mask'][self.name][0])&(self.lag<=self.fitbg['acf_mask'][self.name][1])]
-        self.zoom_auto = self.auto[(self.lag>=self.fitbg['acf_mask'][self.name][0])&(self.lag<=self.fitbg['acf_mask'][self.name][1])]
-
         # Boundary conditions and initial guesses stay the same for all iterations
         self.acf_guesses = [np.mean(self.zoom_auto), self.best_auto, self.best_lag, self.best_lag*0.01*2.]
-        self.acf_bb = functions.gaussian_bounds(self.zoom_lag, self.zoom_auto, self.acf_guesses, best_x=self.best_lag, sigma=10**-2)
+        self.acf_bb = functions.gaussian_bounds(self.zoom_lag, self.zoom_auto, self.acf_guesses, best_x=self.best_lag, sigma=10**-3)
+
+        # Change fitted value with nan to highlight differently in plot
+        peaks_l[idx] = np.nan
+        peaks_a[idx] = np.nan
+        self.peaks_l = peaks_l
+        self.peaks_a = peaks_a
+        
         # Fit a Gaussian function to the selected peak in the ACF to get dnu
         p_gauss3, _ = curve_fit(models.gaussian, self.zoom_lag, self.zoom_auto, p0=self.acf_guesses, bounds=self.acf_bb[0])
+        
        	# If dnu is provided, use that instead
         if self.params[self.name]['force']:
             p_gauss3[2] = self.params[self.name]['guess']

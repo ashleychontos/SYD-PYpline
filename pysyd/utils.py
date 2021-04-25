@@ -414,7 +414,7 @@ def check_fitbg(star):
         # Break if no numax is provided in any scenario
         if star.params[star.name]['numax'] is None:
             print(
-                'Error: syd cannot run without any value for numax.'
+                'Error: pySYD cannot run without any value for numax.'
             )
             return False
         else:
