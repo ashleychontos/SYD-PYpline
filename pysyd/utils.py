@@ -7,9 +7,9 @@ from astropy.io import ascii
 import multiprocessing as mp
 from astropy.stats import mad_std
 
-from pysyd.plots import set_plot_params
-from pysyd.functions import *
-from pysyd.models import *
+from plots import set_plot_params
+from functions import *
+from models import *
 
 
 
@@ -139,7 +139,7 @@ def get_excess_params(
     return args
 
 
-def get_background_params(args, fitbg={}, box_filter=2.5, mc_iter=1, ind_width=50, n_rms=20, 
+def get_background_params(args, fitbg={}, box_filter=2.5, mc_iter=1, ind_width=20, n_rms=20, 
                           n_peaks=5, smooth_ps=1, slope=False, samples=False, clip_ech=True, 
                           clip_value=None, smooth_ech=None, interp_ech=False):
     """
@@ -320,8 +320,6 @@ def load_data(star, lc_data=False, ps_data=False):
             star.nyquist = 10**6/(2.0*star.cadence)
             if star.verbose:
                 print('# LIGHT CURVE: %d lines of data read' % len(star.time))
-            if star.params[star.name]['numax'] > 500.:
-                star.fitbg['smooth_ps'] = 2.5
         # Load power spectrum
         if not os.path.exists('%s/%d_PS.txt' % (star.params['inpdir'], star.name)):
             ps_data=False
@@ -416,7 +414,7 @@ def check_fitbg(star):
         # Break if no numax is provided in any scenario
         if star.params[star.name]['numax'] is None:
             print(
-                'Error: syd cannot run without any value for numax.'
+                'Error: pySYD cannot run without any value for numax.'
             )
             return False
         else:
@@ -431,7 +429,7 @@ def check_fitbg(star):
 
 def get_initial_guesses(star):
     """Get initial guesses for the granulation background."""
-    from pysyd.functions import mean_smooth_ind
+    from functions import mean_smooth_ind
 
     # Mask power spectrum for fitbg module based on estimated/fitted numax
     mask = np.ones_like(star.frequency, dtype=bool)
@@ -447,7 +445,7 @@ def get_initial_guesses(star):
         else:
             mask = np.ma.getmask(np.ma.masked_inside(star.frequency, 1.0, star.nyquist))
     # if lower numax adjust default smoothing filter from 2.5->0.5muHz
-    if star.params[star.name]['numax'] <= 500.:
+    if star.params[star.name]['numax'] <= 500. and star.fitbg['smooth_ps'] == 2.5:
         star.fitbg['smooth_ps'] = 0.5
     star.frequency = star.frequency[mask]
     star.power = star.power[mask]
